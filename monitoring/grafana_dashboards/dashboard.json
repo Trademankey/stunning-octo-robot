@@ -1,0 +1,116 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": true,
+  "panels": [
+    {
+      "title": "Account Equity (USD)",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+      "targets": [
+        {"expr": "bot_equity_usd", "legendFormat": "Equity"}
+      ]
+    },
+    {
+      "title": "Daily P&L",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+      "targets": [
+        {"expr": "bot_daily_pnl_usd", "legendFormat": "Daily P&L"},
+        {"expr": "bot_unrealised_pnl_usd", "legendFormat": "Unrealised"}
+      ]
+    },
+    {
+      "title": "Drawdown %",
+      "type": "gauge",
+      "gridPos": {"h": 6, "w": 6, "x": 0, "y": 8},
+      "targets": [
+        {"expr": "bot_drawdown_pct", "legendFormat": "Current DD"}
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 0.15,
+          "thresholds": {
+            "steps": [
+              {"color": "green", "value": 0},
+              {"color": "yellow", "value": 0.03},
+              {"color": "red", "value": 0.05}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Open Positions",
+      "type": "stat",
+      "gridPos": {"h": 6, "w": 6, "x": 6, "y": 8},
+      "targets": [
+        {"expr": "bot_open_positions", "legendFormat": "Positions"}
+      ]
+    },
+    {
+      "title": "Net Exposure (USD)",
+      "type": "stat",
+      "gridPos": {"h": 6, "w": 6, "x": 12, "y": 8},
+      "targets": [
+        {"expr": "bot_net_exposure_usd", "legendFormat": "Net Exposure"}
+      ]
+    },
+    {
+      "title": "Market Regime",
+      "type": "stat",
+      "gridPos": {"h": 6, "w": 6, "x": 18, "y": 8},
+      "targets": [
+        {"expr": "bot_market_regime", "legendFormat": "Regime"}
+      ]
+    },
+    {
+      "title": "Trades Executed",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 14},
+      "targets": [
+        {"expr": "rate(bot_trades_total[1h])", "legendFormat": "{{side}} {{symbol}}"}
+      ]
+    },
+    {
+      "title": "Model Prediction Latency",
+      "type": "histogram",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 14},
+      "targets": [
+        {"expr": "bot_model_predict_seconds_bucket", "legendFormat": "{{le}}"}
+      ]
+    },
+    {
+      "title": "Model Signal by Symbol",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 22},
+      "targets": [
+        {"expr": "bot_model_signal", "legendFormat": "{{symbol}}"}
+      ]
+    },
+    {
+      "title": "Errors & Reconnects",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 22},
+      "targets": [
+        {"expr": "rate(bot_errors_total[5m])", "legendFormat": "{{component}} errors"},
+        {"expr": "rate(bot_ws_reconnects_total[5m])", "legendFormat": "WS reconnects"}
+      ]
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["crypto", "trading"],
+  "templating": {"list": []},
+  "time": {"from": "now-6h", "to": "now"},
+  "title": "Crypto Trading Bot Dashboard",
+  "uid": "crypto-bot-main"
+}

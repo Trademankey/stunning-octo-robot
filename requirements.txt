@@ -1,0 +1,89 @@
+# ═══════════════════════════════════════════════════════
+# Institutional-Grade Crypto Trading Bot — Dependencies
+# Python 3.11+
+# ═══════════════════════════════════════════════════════
+
+# ── Core Async & Networking ───────────────────────────
+asyncio-mqtt>=0.16.2
+aiohttp>=3.9.5
+aiofiles>=23.2.1
+uvloop>=0.19.0;sys_platform!='win32'
+websockets>=12.0
+
+# ── Exchange Connectivity ─────────────────────────────
+ccxt>=4.3.0
+
+# ── Data Processing ───────────────────────────────────
+polars>=1.0.0
+pandas>=2.2.0
+numpy>=1.26.0
+scipy>=1.13.0
+numba>=0.59.0
+joblib>=1.4.0
+
+# ── Technical Analysis ────────────────────────────────
+TA-Lib>=0.4.28
+pandas-ta>=0.3.14b1
+
+# ── Machine Learning — Gradient Boosting ──────────────
+xgboost>=2.0.0
+lightgbm>=4.3.0
+catboost>=1.2.5
+scikit-learn>=1.5.0
+optuna>=3.6.0
+
+# ── Deep Learning ─────────────────────────────────────
+torch>=2.3.0
+pytorch-lightning>=2.3.0
+pytorch-forecasting>=1.0.0
+
+# ── Reinforcement Learning ────────────────────────────
+stable-baselines3>=2.3.0
+gymnasium>=0.29.0
+
+# ── Statistical / Regime Detection ────────────────────
+hmmlearn>=0.3.0
+statsmodels>=0.14.0
+arch>=7.0.0
+
+# ── NLP / Sentiment ──────────────────────────────────
+transformers>=4.41.0
+vaderSentiment>=3.3.2
+praw>=7.7.0
+
+# ── Dimensionality Reduction ─────────────────────────
+umap-learn>=0.5.6
+
+# ── Database & Caching ───────────────────────────────
+asyncpg>=0.29.0
+sqlalchemy[asyncio]>=2.0.30
+alembic>=1.13.0
+redis[hiredis]>=5.0.0
+
+# ── Configuration & Validation ───────────────────────
+pydantic>=2.7.0
+pydantic-settings>=2.3.0
+python-dotenv>=1.0.0
+
+# ── Logging & Monitoring ─────────────────────────────
+structlog>=24.2.0
+prometheus-client>=0.20.0
+prometheus-async>=22.2.0
+
+# ── Telegram ─────────────────────────────────────────
+python-telegram-bot>=21.3
+
+# ── Visualization / Backtest ─────────────────────────
+plotly>=5.22.0
+rich>=13.7.0
+
+# ── Testing ──────────────────────────────────────────
+pytest>=8.2.0
+pytest-asyncio>=0.23.0
+pytest-cov>=5.0.0
+
+# ── Utilities ────────────────────────────────────────
+orjson>=3.10.0
+tenacity>=8.3.0
+cachetools>=5.3.0
+croniter>=2.0.0

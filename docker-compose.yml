@@ -1,0 +1,154 @@
+# ═══════════════════════════════════════════════════════════════
+# Docker Compose — Full Trading Infrastructure Stack
+# Services: bot, postgres+timescaledb, redis, prometheus, grafana
+# ═══════════════════════════════════════════════════════════════
+version: "3.9"
+
+x-common: &common
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options:
+      max-size: "50m"
+      max-file: "5"
+
+services:
+  # ── Trading Bot ──────────────────────────────────────
+  bot:
+    <<: *common
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: crypto_bot
+    env_file: .env
+    environment:
+      - POSTGRES_HOST=postgres
+      - REDIS_HOST=redis
+    volumes:
+      - bot_logs:/app/logs
+      - model_checkpoints:/app/model_checkpoints
+      - data_cache:/app/data_cache
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "4"
+          memory: 8G
+        reservations:
+          cpus: "2"
+          memory: 4G
+    networks:
+      - trading_net
+
+  # ── PostgreSQL + TimescaleDB ─────────────────────────
+  postgres:
+    <<: *common
+    image: timescale/timescaledb:latest-pg16
+    container_name: trading_postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-trading_bot}
+      POSTGRES_USER: ${POSTGRES_USER:-trader}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me_strong_password_123}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./config/init_db.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-trader} -d ${POSTGRES_DB:-trading_bot}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 4G
+    networks:
+      - trading_net
+
+  # ── Redis ────────────────────────────────────────────
+  redis:
+    <<: *common
+    image: redis:7-alpine
+    container_name: trading_redis
+    command: >
+      redis-server
+        --maxmemory 1gb
+        --maxmemory-policy allkeys-lru
+        --appendonly yes
+        --save 60 1000
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 1G
+    networks:
+      - trading_net
+
+  # ── Prometheus ───────────────────────────────────────
+  prometheus:
+    <<: *common
+    image: prom/prometheus:latest
+    container_name: trading_prometheus
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=30d"
+    networks:
+      - trading_net
+
+  # ── Grafana ──────────────────────────────────────────
+  grafana:
+    <<: *common
+    image: grafana/grafana:latest
+    container_name: trading_grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_INSTALL_PLUGINS: grafana-clock-panel,grafana-piechart-panel
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana_dashboards:/etc/grafana/provisioning/dashboards
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - trading_net
+
+volumes:
+  postgres_data:
+  redis_data:
+  prometheus_data:
+  grafana_data:
+  bot_logs:
+  model_checkpoints:
+  data_cache:
+
+networks:
+  trading_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16

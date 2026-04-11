@@ -1,0 +1,37 @@
+# ── Runtime / OS ─────────────────────────
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# ── Environment ─────────────────────────
+.env
+.venv/
+venv/
+env/
+
+# ── IDE ─────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ── Data / Checkpoints ──────────────────
+model_checkpoints/
+data_cache/
+logs/
+*.joblib
+*.pt
+*.cbm
+*.ckpt
+
+# ── Misc ────────────────────────────────
+.pytest_cache/
+.mypy_cache/
+htmlcov/
+.coverage
+*.log
