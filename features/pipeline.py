@@ -20,7 +20,7 @@ from joblib import Parallel, delayed
 
 from config.settings import get_settings
 from features.dimensionality import DimensionalityReducer
-from features.orderbook import compute_orderbook_features
+from features.orderbook import compute_orderbook_features, _empty_features as _empty_ob_features
 from features.regime import RegimeDetector
 from features.statistical import compute_statistical_features
 from features.technical import (
@@ -30,6 +30,13 @@ from features.technical import (
 )
 
 log = structlog.get_logger(__name__)
+
+# ── Canonical feature keys (MUST match at train & inference) ──
+_ONCHAIN_KEYS = [
+    "funding_rate", "open_interest", "exchange_netflow",
+    "nvt_ratio", "mvrv", "sopr", "whale_txns",
+]
+_SENT_KEYS = ["news", "reddit", "twitter", "weighted_avg"]
 
 
 class FeaturePipeline:
@@ -51,12 +58,17 @@ class FeaturePipeline:
         """
         Fit regime detector + dimensionality reducer on training data.
         data: {symbol: DataFrame} — expects OHLCV columns.
+
+        Uses transform() with no optional sources so that the feature
+        count is identical to what inference will produce (zero-filled
+        orderbook / on-chain / sentiment columns are still present).
         """
         all_features = []
         for symbol, df in data.items():
             if len(df) < 100:
                 continue
-            enriched = self._compute_core_features(df)
+            # Use full transform (no OB/onchain/sent → zero-filled)
+            enriched = self.transform(df, symbol=symbol)
             feature_cols = [c for c in enriched.columns if c not in ("time", "open", "high", "low", "close", "volume")]
             X = enriched.select(feature_cols).to_numpy()
             X = np.nan_to_num(X, nan=0.0)
@@ -111,22 +123,21 @@ class FeaturePipeline:
                         pl.Series(name=f"regime_{key}", values=arr.astype(np.float64))
                     )
 
-        # Orderbook features
-        if orderbook:
-            ob_feats = compute_orderbook_features(orderbook)
-            for k, v in ob_feats.items():
-                enriched = enriched.with_columns(pl.lit(float(v)).alias(f"ob_{k}"))
+        # Orderbook features — ALWAYS add columns (zero-fill when no data)
+        # This guarantees the same feature count at training and inference.
+        ob_feats = compute_orderbook_features(orderbook) if orderbook else _empty_ob_features()
+        for k, v in ob_feats.items():
+            enriched = enriched.with_columns(pl.lit(float(v)).alias(f"ob_{k}"))
 
-        # On-chain features
-        if onchain:
-            for k, v in onchain.items():
-                val = float(v) if v is not None else 0.0
-                enriched = enriched.with_columns(pl.lit(val).alias(f"onchain_{k}"))
+        # On-chain features — ALWAYS add canonical set
+        for k in _ONCHAIN_KEYS:
+            val = float(onchain.get(k) or 0) if onchain else 0.0
+            enriched = enriched.with_columns(pl.lit(val).alias(f"onchain_{k}"))
 
-        # Sentiment features
-        if sentiment:
-            for k, v in sentiment.items():
-                enriched = enriched.with_columns(pl.lit(float(v)).alias(f"sent_{k}"))
+        # Sentiment features — ALWAYS add canonical set
+        for k in _SENT_KEYS:
+            val = float(sentiment.get(k, 0)) if sentiment else 0.0
+            enriched = enriched.with_columns(pl.lit(val).alias(f"sent_{k}"))
 
         # Dimensionality reduction (latent features)
         if self._fitted:
@@ -199,10 +210,19 @@ class FeaturePipeline:
         return results
 
     def save(self, base_path: str) -> None:
+        import os, json
+        os.makedirs(base_path, exist_ok=True)
         self.regime_detector.save(f"{base_path}/regime_detector.joblib")
         self.dim_reducer.save(f"{base_path}/dim_reducer.joblib")
+        with open(f"{base_path}/feature_names.json", "w") as f:
+            json.dump(self._feature_names, f)
 
     def load(self, base_path: str) -> None:
+        import os, json
         self.regime_detector.load(f"{base_path}/regime_detector.joblib")
         self.dim_reducer.load(f"{base_path}/dim_reducer.joblib")
+        names_path = f"{base_path}/feature_names.json"
+        if os.path.exists(names_path):
+            with open(names_path) as f:
+                self._feature_names = json.load(f)
         self._fitted = True

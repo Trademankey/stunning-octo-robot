@@ -97,3 +97,55 @@ class TestOrderbookFeatures:
         }
         feats = compute_orderbook_features(ob)
         assert feats["imbalance_1"] > 0
+
+
+class TestFeaturePipelineConsistency:
+    """Regression: feature count must be identical with and without optional data."""
+
+    def test_same_column_count_with_and_without_optional_data(self):
+        """The XGBoost 78-vs-99 bug: transform must always produce the same columns."""
+        from features.pipeline import FeaturePipeline
+
+        df = _make_ohlcv(300)
+        pipe = FeaturePipeline()
+
+        # Without any optional data
+        out_bare = pipe.transform(df, symbol="TEST/USDT")
+
+        # With orderbook + on-chain + sentiment
+        ob = {
+            "bids": [[100.0, 10], [99.5, 20], [99.0, 30]],
+            "asks": [[100.5, 15], [101.0, 25], [101.5, 35]],
+        }
+        onchain = {"funding_rate": 0.01, "open_interest": 5000, "exchange_netflow": -100,
+                    "nvt_ratio": 50, "mvrv": 1.5, "sopr": 1.01, "whale_txns": 42}
+        sentiment = {"news": 0.3, "reddit": 0.1, "twitter": -0.2, "weighted_avg": 0.1}
+
+        out_full = pipe.transform(df, symbol="TEST/USDT",
+                                  orderbook=ob, onchain=onchain, sentiment=sentiment)
+
+        bare_feat = [c for c in out_bare.columns if c not in ("time","open","high","low","close","volume")]
+        full_feat = [c for c in out_full.columns if c not in ("time","open","high","low","close","volume")]
+
+        assert len(bare_feat) == len(full_feat), (
+            f"Feature count mismatch: bare={len(bare_feat)} vs full={len(full_feat)}. "
+            f"Missing in bare: {set(full_feat)-set(bare_feat)}. "
+            f"Extra in bare: {set(bare_feat)-set(full_feat)}"
+        )
+        assert bare_feat == full_feat, "Feature column ORDER differs"
+
+    def test_ob_onchain_sent_columns_always_present(self):
+        """Verify canonical columns exist even when no data is provided."""
+        from features.pipeline import FeaturePipeline, _ONCHAIN_KEYS, _SENT_KEYS
+
+        df = _make_ohlcv(200)
+        pipe = FeaturePipeline()
+        out = pipe.transform(df, symbol="TEST/USDT")
+
+        cols = set(out.columns)
+        for k in _ONCHAIN_KEYS:
+            assert f"onchain_{k}" in cols, f"Missing onchain_{k}"
+        for k in _SENT_KEYS:
+            assert f"sent_{k}" in cols, f"Missing sent_{k}"
+        assert "ob_spread" in cols, "Missing ob_spread"
+        assert "ob_imbalance_5" in cols, "Missing ob_imbalance_5"

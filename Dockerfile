@@ -8,7 +8,7 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# ── System dependencies (TA-Lib C library, build tools) ──
+# ── System deps: TA-Lib C library persists into production ──
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential \
         wget \
@@ -16,16 +16,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libhdf5-dev \
         libssl-dev \
         libffi-dev \
+        libgomp1 \
         git \
     && wget -q http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz \
     && tar -xzf ta-lib-0.4.0-src.tar.gz \
     && cd ta-lib/ && ./configure --prefix=/usr && make -j$(nproc) && make install \
     && cd .. && rm -rf ta-lib ta-lib-0.4.0-src.tar.gz \
-    && apt-get purge -y build-essential wget \
-    && apt-get autoremove -y \
+    && ldconfig \
     && rm -rf /var/lib/apt/lists/*
 
-# ── Build stage ──────────────────────────────────────────
+# ── Build stage (compile wheels) ─────────────────────────
 FROM base AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends build-essential
@@ -37,7 +37,11 @@ RUN pip install --prefix=/install -r requirements.txt
 # ── Production stage ─────────────────────────────────────
 FROM base AS production
 
+# Keep build-essential for any runtime-compiled extensions, then clean
 COPY --from=builder /install /usr/local
+
+# Re-run ldconfig so TA-Lib .so is found at runtime
+RUN ldconfig
 
 WORKDIR /app
 
@@ -67,4 +71,4 @@ HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
     CMD python -c "import aiohttp; print('healthy')" || exit 1
 
 ENTRYPOINT ["python", "-O", "main.py"]
-CMD ["--mode", "paper"]
+CMD ["--mode", "live"]
