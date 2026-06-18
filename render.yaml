@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: alichalmer-whatsapp-agent
+    runtime: docker
+    plan: starter
+    region: oregon
+    dockerfilePath: ./alichalmer_whatsapp_agent/Dockerfile
+    dockerContext: ./alichalmer_whatsapp_agent
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: alichalmer-whatsapp-db
+          property: connectionString
+      - key: WHATSAPP_VERIFY_TOKEN
+        sync: false
+      - key: WHATSAPP_ACCESS_TOKEN
+        sync: false
+      - key: WHATSAPP_PHONE_NUMBER_ID
+        sync: false
+      - key: COFFEE_PRODUCT_URL
+        value: https://alichalmer.com/product/ali-chalmer-roast/
+      - key: WHOLESALE_PAGE_URL
+        value: https://alichalmer.com/wholesale/
+      - key: LEAD_WEBHOOK_URL
+        sync: false
+
+databases:
+  - name: alichalmer-whatsapp-db
+    plan: basic-256mb
